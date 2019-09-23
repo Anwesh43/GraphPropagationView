@@ -18,10 +18,13 @@ val strokeFactor : Float = 90f
 val foreColor : Int = Color.parseColor("#673AB7")
 val backColor : Int = Color.parseColor("#BDBDBD")
 val sizeFactor : Float = 10f
+val row : Int = 3
 
 fun Int.inverse() : Float = 1f / this
 fun Float.maxScale(i : Int, n : Int) : Float = Math.max(0f, this - i * n.inverse())
 fun Float.divideScale(i : Int, n : Int) : Float = Math.min(n.inverse(), maxScale(i, n)) * n
+fun Float.x(i : Int) : Float = this * (i + 1) % (row + 1)
+fun Float.y(i : Int) : Float = this * ((i + 1) / (row + 1))
 
 fun Canvas.drawRect(x : Float, y : Float, size : Float, sc : Float, paint : Paint) {
     val sizeSc : Float = size * sc
@@ -33,6 +36,24 @@ fun Canvas.drawRect(x : Float, y : Float, size : Float, sc : Float, paint : Pain
 
 fun Canvas.drawLinesToNeighbor(x1 : Float, y1 : Float, x2 : Float, y2 : Float, paint : Paint) {
     drawLine(x1, y1, x2, y2, paint)
+}
+
+fun Canvas.drawGraphNode(i : Int, scale : Float, neighbors : Set<GraphPropagationView.GraphNode>, paint : Paint) {
+    val sc1 : Float = scale.divideScale(0, 2)
+    val sc2 : Float = scale.divideScale(1, 2)
+    val w : Float = width.toFloat()
+    val h : Float = height.toFloat()
+    val gap : Float = w / (row + 1)
+    val x : Float = gap.x(i + 1)
+    val y : Float = gap.y(i + 1)
+    save()
+    drawRect(x, y, w / sizeFactor, sc1, paint)
+    restore()
+    neighbors.filter({!it.visited}).forEach {
+        val x2 : Float = gap.x(it.i + 1)
+        val y2 : Float = gap.y(it.i + 1)
+        drawLinesToNeighbor(x, y, x + (x2 - x) * sc2, y + (y2 - y) * sc2, paint)
+    }
 }
 
 class GraphPropagationView(ctx : Context) : View(ctx) {
@@ -97,6 +118,40 @@ class GraphPropagationView(ctx : Context) : View(ctx) {
             if (animated) {
                 animated = false
             }
+        }
+    }
+
+    data class GraphNode(var i : Int, var visited : Boolean = false, val state : State = State()) {
+
+        private val neighbors : HashSet<GraphNode> = HashSet<GraphNode>()
+
+        fun populateNeighbors(nodes : List<GraphNode>) {
+            if (i > 0) {
+                neighbors.add(nodes[i - 1])
+            }
+            if (i >= row) {
+                neighbors.add(nodes[i - row])
+            }
+            if (i < nodes.size - 1) {
+                neighbors.add(nodes[i + 1])
+            }
+            if (i < nodes.size - row) {
+                neighbors.add(nodes[i + row])
+            }
+        }
+
+        fun draw(canvas : Canvas, paint : Paint) {
+            canvas.drawGraphNode(i, state.scale, neighbors, paint)
+        }
+
+        fun update(cb : (Float) -> Unit) {
+            state.update {
+                visited = !visited
+                cb(it)
+            }
+        }
+        fun startUpdating(cb : () -> Unit) {
+            state.startUpdating(cb)
         }
     }
 }
