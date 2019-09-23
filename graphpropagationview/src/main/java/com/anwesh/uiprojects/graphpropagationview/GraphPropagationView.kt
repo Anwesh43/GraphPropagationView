@@ -232,4 +232,13 @@ class GraphPropagationView(ctx : Context) : View(ctx) {
             }
         }
     }
+
+    companion object {
+
+        fun create(activity : Activity) : GraphPropagationView {
+            val view : GraphPropagationView = GraphPropagationView(activity)
+            activity.setContentView(view)
+            return view
+        }
+    }
 }
