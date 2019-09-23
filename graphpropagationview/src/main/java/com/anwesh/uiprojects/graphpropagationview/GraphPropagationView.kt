@@ -12,6 +12,7 @@ import android.graphics.Paint
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.RectF
+import java.util.*
 
 val scGap : Float = 0.01f
 val strokeFactor : Float = 90f
@@ -19,6 +20,7 @@ val foreColor : Int = Color.parseColor("#673AB7")
 val backColor : Int = Color.parseColor("#BDBDBD")
 val sizeFactor : Float = 10f
 val row : Int = 3
+val totalNodes : Int = 15
 
 fun Int.inverse() : Float = 1f / this
 fun Float.maxScale(i : Int, n : Int) : Float = Math.max(0f, this - i * n.inverse())
@@ -140,6 +142,10 @@ class GraphPropagationView(ctx : Context) : View(ctx) {
             }
         }
 
+        fun traverseNeighbors(cb : (GraphNode) -> Unit) {
+            neighbors.forEach(cb)
+        }
+
         fun draw(canvas : Canvas, paint : Paint) {
             canvas.drawGraphNode(i, state.scale, neighbors, paint)
         }
@@ -152,6 +158,50 @@ class GraphPropagationView(ctx : Context) : View(ctx) {
         }
         fun startUpdating(cb : () -> Unit) {
             state.startUpdating(cb)
+        }
+    }
+
+    data class Graph(var i : Int) {
+
+        private val nodes : ArrayList<GraphNode> = ArrayList()
+        private val stack : Stack<GraphNode> = Stack()
+
+        init {
+            for (i in 0..(totalNodes - 1)) {
+                nodes.add(GraphNode(i + 1))
+            }
+            stack.push(nodes[0])
+
+        }
+
+        fun draw(canvas : Canvas, paint : Paint) {
+            nodes.forEach {
+                it.draw(canvas, paint)
+            }
+        }
+
+        fun update(cb : (Float) -> Unit) {
+            var curr : GraphNode = stack.peek()
+            curr.update {
+                stack.pop()
+                if (!stack.empty()) {
+                    stack.peek().startUpdating {
+                        update(cb)
+                    }
+                }
+                curr.traverseNeighbors {
+                    if (!it.visited) {
+                        stack.push(it)
+                    }
+                }
+
+            }
+        }
+
+        fun startUpdating(cb : () -> Unit) {
+            if (!stack.empty()) {
+                stack.peek().startUpdating(cb)
+            }
         }
     }
 }
