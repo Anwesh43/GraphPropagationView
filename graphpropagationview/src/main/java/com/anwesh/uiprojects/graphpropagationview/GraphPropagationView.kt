@@ -48,6 +48,9 @@ fun Canvas.drawGraphNode(i : Int, scale : Float, neighbors : Set<GraphPropagatio
     val gap : Float = w / (row + 1)
     val x : Float = gap.x(i + 1)
     val y : Float = gap.y(i + 1)
+    paint.color = foreColor
+    paint.strokeWidth = Math.min(w, h) / strokeFactor
+    paint.strokeCap = Paint.Cap.ROUND
     save()
     drawRect(x, y, w / sizeFactor, sc1, paint)
     restore()
@@ -194,13 +197,37 @@ class GraphPropagationView(ctx : Context) : View(ctx) {
                         stack.push(it)
                     }
                 }
-
+                if (curr.i == i) {
+                    cb(it)
+                }
             }
         }
 
         fun startUpdating(cb : () -> Unit) {
             if (!stack.empty()) {
                 stack.peek().startUpdating(cb)
+            }
+        }
+    }
+
+    data class Renderer(var view : GraphPropagationView) {
+
+        private val animator : Animator = Animator(view)
+        private val graph : Graph = Graph(0)
+
+        fun render(canvas : Canvas, paint : Paint) {
+            canvas.drawColor(backColor)
+            graph.draw(canvas, paint)
+            animator.animate {
+                graph.update {
+                    animator.stop()
+                }
+            }
+        }
+
+        fun handleTap() {
+            graph.startUpdating {
+                animator.start()
             }
         }
     }
